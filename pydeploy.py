@@ -51,11 +51,12 @@ REMOTE_MAPPING_URL = "https://raw.githubusercontent.com/bndr/pipreqs/master/pipr
 KNOWN_MAPPING = {
     "mdbx": "libmdbx", "cv2": "opencv-python", "skimage": "scikit-image",
     "PIL": "Pillow", "yaml": "PyYAML", "bs4": "beautifulsoup4",
-    "dotenv": "python-dotenv", "sklearn": "scikit-learn", "google": "google-cloud",
+    "dotenv": "python-dotenv", "sklearn": "scikit-learn",
     "telegram": "python-telegram-bot", "mysqldb": "mysqlclient",
     "fitz": "pymupdf", "docx": "python-docx", "discord": "discord.py",
-    "dateutil": "python-dateutil", "dns": "dnspython", "redis": "redis",
-    "psycopg2": "psycopg2-binary", "magic": "python-magic"
+    "dateutil": "python-dateutil", "dns": "dnspython",
+    "psycopg2": "psycopg2-binary", "magic": "python-magic",
+    "genai": "google-generativeai"
 }
 
 # ANSI Color Codes для красивого вывода
