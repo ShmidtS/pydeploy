@@ -370,6 +370,9 @@ def detect_local_packages() -> Set[str]:
     """
     local = set()
     project_root = Path.cwd()
+    skip_dirs = {'.venv', '.git', '.omc', '.idea', '.vscode', '__pycache__',
+                 '.pytest_cache', '.mypy_cache', 'node_modules', '.memorious',
+                 '.serena', 'build', 'dist', '.pydeploy_backups'}
 
     # 1. Проверяем наличие локального пакета (setup.py/pyproject.toml)
     has_local_package = (
@@ -383,15 +386,22 @@ def detect_local_packages() -> Set[str]:
         local_names = _extract_local_package_names(project_root)
         local.update(local_names)
 
-    # 2. Ищем директории с __init__.py (локальные пакеты)
+    # 2. Рекурсивно ищем директории с __init__.py (локальные пакеты)
     for item in project_root.iterdir():
-        if item.is_dir() and not item.name.startswith('.') and item.name != '__pycache__':
-            init_file = item / "__init__.py"
-            if init_file.exists():
-                local.add(item.name)
-                log.debug(f"Detected local package directory: {item.name}")
+        if not item.is_dir() or item.name.startswith('.') or item.name in skip_dirs:
+            continue
+        # Директории верхнего уровня с __init__.py — точно локальные пакеты
+        if (item / "__init__.py").exists():
+            local.add(item.name)
+            log.debug(f"Detected local package directory: {item.name}")
+        # Рекурсивно ищем подпакеты
+        _detect_packages_recursive(item, local, project_root, skip_dirs)
 
-    # 3. Загружаем список локальных пакетов из файла
+    # 3. Ищем namespace-пакеты (директории без __init__.py, но с pyproject.toml
+    #    или sub-directories с __init__.py под ними)
+    _detect_namespace_packages(project_root, local, skip_dirs)
+
+    # 4. Загружаем список локальных пакетов из файла
     local_file = project_root / LOCAL_PACKAGES_FILE
     if local_file.exists():
         try:
@@ -446,6 +456,38 @@ def _extract_local_package_names(project_root: Path) -> Set[str]:
             pass
 
     return names
+
+
+def _detect_packages_recursive(directory: Path, local: Set[str], project_root: Path, skip_dirs: Set[str], max_depth: int = 3) -> None:
+    """Рекурсивный поиск директорий с __init__.py (локальные пакеты)."""
+    if max_depth <= 0:
+        return
+
+    if (directory / "__init__.py").exists():
+        local.add(directory.name)
+        log.debug(f"Detected local package directory: {directory.name}")
+
+    for item in directory.iterdir():
+        if not item.is_dir() or item.name.startswith('.') or item.name in skip_dirs:
+            continue
+        _detect_packages_recursive(item, local, project_root, skip_dirs, max_depth - 1)
+
+
+def _detect_namespace_packages(project_root: Path, local: Set[str], skip_dirs: Set[str]) -> None:
+    """Обнаружение namespace-пакетов (директории с подпакетами-дочерними модулями)."""
+    for item in project_root.iterdir():
+        if not item.is_dir() or item.name.startswith('.') or item.name in skip_dirs:
+            continue
+        # Проверяем поддиректории: если есть дочерние пакеты, то родительская
+        # директория тоже считается частью пакета (например, src/ -> src/)
+        sub_packages = set()
+        for sub in item.iterdir():
+            if sub.is_dir() and (sub / "__init__.py").exists():
+                sub_packages.add(sub.name)
+        # Если нашлись дочерние пакеты, добавляем их имена как локальные
+        for sp in sub_packages:
+            local.add(sp)
+            log.debug(f"Detected namespace sub-package: {sp}")
 
 
 # =============================================================================
